@@ -123,6 +123,8 @@ struct zram {
 	size_t disksize;	/* bytes */
 
 	struct zram_stats stats;
+	unsigned char *vaddr;
+	unsigned int size;
 };
 
 /*-- */

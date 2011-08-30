@@ -277,7 +277,22 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
 	struct page *page;
 	struct block_header *block;
 
-	page = alloc_page(flags);
+	if (pool->size == 0) {
+		page = alloc_page(flags);
+	}
+	else //allocate from reservation
+	{
+		if (pool->total_pages < ((pool->size / PAGE_SIZE) - 1)) {
+			page = virt_to_page(pool->vaddr + (PAGE_SIZE * pool->total_pages)); 
+//			page = pfn_to_page(__phys_to_pfn(pool->paddr + (PAGE_SIZE * pool->total_pages))); 
+//			printk("kodos: grow_pool page# %llu \n", pool->total_pages);
+		}		
+		else { //off the reservation
+			page = alloc_page(flags);
+//			printk("kodos: grow_pool: off the reservation\n");
+		}
+	}
+
 	if (unlikely(!page))
 		return -ENOMEM;
 
@@ -303,7 +318,7 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
  * Create a memory pool. Allocates freelist, bitmaps and other
  * per-pool metadata.
  */
-struct xv_pool *xv_create_pool(void)
+struct xv_pool *xv_create_pool(unsigned char *vaddr, unsigned int size)
 {
 	u32 ovhd_size;
 	struct xv_pool *pool;
@@ -312,6 +327,10 @@ struct xv_pool *xv_create_pool(void)
 	pool = kzalloc(ovhd_size, GFP_KERNEL);
 	if (!pool)
 		return NULL;
+
+	printk("kodos: create_pool: size: %d\n", size);
+	pool->vaddr = vaddr;
+	pool->size = size;
 
 	spin_lock_init(&pool->lock);
 
@@ -414,6 +433,11 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 }
 EXPORT_SYMBOL_GPL(xv_malloc);
 
+static inline bool off_the_reservation(struct xv_pool *pool, struct page *page) {
+	unsigned char *p_vaddr = phys_to_virt(page_to_phys(page));
+	return ((p_vaddr < pool->vaddr) || (p_vaddr > (pool->vaddr + pool->size)));
+}
+
 /*
  * Free block identified with <page, offset>
  */
@@ -468,12 +492,15 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 
 	/* No used objects in this page. Free it. */
 	if (block->size == PAGE_SIZE - XV_ALIGN) {
-		put_ptr_atomic(page_start, KM_USER0);
-		spin_unlock(&pool->lock);
+		if ((pool->size == 0) || off_the_reservation(pool, page)) {
+//			printk("kodos: reclaim from OTR\n");
+			put_ptr_atomic(page_start, KM_USER0);
+			spin_unlock(&pool->lock);
 
-		__free_page(page);
-		stat_dec(&pool->total_pages);
-		return;
+			__free_page(page);
+			stat_dec(&pool->total_pages);
+			return;
+		}
 	}
 
 	set_flag(block, BLOCK_FREE);

@@ -59,6 +59,7 @@
 #include "mfc_memory.h"
 #include "mfc_buffer_manager.h"
 #include "mfc_intr.h"
+#include "mfc.h"
 
 #define MFC_FW_NAME	"samsung_mfc_fw.bin"
 
@@ -67,6 +68,8 @@ static struct mutex mfc_mutex;
 static struct clk *mfc_sclk;
 static struct regulator *mfc_pd_regulator;
 const struct firmware	*mfc_fw_info;
+
+struct platform_device *pd;
 
 static int mfc_open(struct inode *inode, struct file *file)
 {
@@ -157,6 +160,9 @@ static int mfc_release(struct inode *inode, struct file *file)
 {
 	struct mfc_inst_ctx *mfc_ctx;
 	int ret;
+	int inst_no;
+
+	printk("kodos: mfc_release\n");
 
 	mutex_lock(&mfc_mutex);
 
@@ -170,14 +176,19 @@ static int mfc_release(struct inode *inode, struct file *file)
 	mfc_release_all_buffer(mfc_ctx->mem_inst_no);
 	mfc_merge_fragment(mfc_ctx->mem_inst_no);
 
+	for (inst_no=0; inst_no < 10; inst_no++) {
+		mfc_release_all_buffer(inst_no);
+		mfc_merge_fragment(inst_no);
+	}
+
 	mfc_return_mem_inst_no(mfc_ctx->mem_inst_no);
 
 	/* In case of no instance, we should not release codec instance */
-	if (mfc_ctx->InstNo >= 0) {
+//	if (mfc_ctx->InstNo >= 0) {
 		clk_enable(mfc_sclk);
 		mfc_return_inst_no(mfc_ctx->InstNo, mfc_ctx->MfcCodecType);
 		clk_disable(mfc_sclk);
-	}
+//	}
 
 	kfree(mfc_ctx);
 
@@ -196,6 +207,7 @@ out_release:
 	}
 
 	mutex_unlock(&mfc_mutex);
+
 	return ret;
 }
 
@@ -204,6 +216,7 @@ static int mfc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	int ret, ex_ret;
 	struct mfc_inst_ctx *mfc_ctx = NULL;
 	struct mfc_common_args in_param;
+
 
 	mutex_lock(&mfc_mutex);
 	clk_enable(mfc_sclk);
@@ -443,6 +456,7 @@ out_ioctl:
 	return ret;
 }
 
+
 static int mfc_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long vir_size = vma->vm_end - vma->vm_start;
@@ -471,7 +485,7 @@ static int mfc_mmap(struct file *filp, struct vm_area_struct *vma)
 	mfc_ctx->port0_mmap_size = (vir_size / 2);
 
 	if (mfc_ctx->buf_type == MFC_BUFFER_CACHE) {
-		vma->vm_flags |= VM_RESERVED | VM_IO;
+//		vma->vm_flags |= VM_RESERVED | VM_IO;
 	 	/*
  	  	* port0 mapping for stream buf & frame buf (chroma + MV)
  	  	*/
@@ -481,7 +495,7 @@ static int mfc_mmap(struct file *filp, struct vm_area_struct *vma)
 	 		 mfc_err("mfc remap port0 error\n");
 	 		 return -EAGAIN;
 	 	}
-		vma->vm_flags |= VM_RESERVED | VM_IO;
+//		vma->vm_flags |= VM_RESERVED | VM_IO;
 		/*
 	 	* port1 mapping for frame buf (luma)
 	 	*/
@@ -492,7 +506,7 @@ static int mfc_mmap(struct file *filp, struct vm_area_struct *vma)
 			return -EAGAIN;
 		 }
 	} else {
-	vma->vm_flags |= VM_RESERVED | VM_IO;
+//	vma->vm_flags |= VM_RESERVED | VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	/*
 	 * port0 mapping for stream buf & frame buf (chroma + MV)
@@ -504,7 +518,7 @@ static int mfc_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EAGAIN;
 	}
 
-	vma->vm_flags |= VM_RESERVED | VM_IO;
+//	vma->vm_flags |= VM_RESERVED | VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	/*
 	 * port1 mapping for frame buf (luma)
@@ -555,9 +569,11 @@ static int mfc_probe(struct platform_device *pdev)
 	size_t size;
 	int ret;
 
-	if (!pdev || !pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "Unable to probe mfc!\n");
-		return -1;
+	pd = pdev;
+
+        if (!pdev || !pdev->dev.platform_data) {
+                dev_err(&pdev->dev, "Unable to probe mfc!\n");
+                return -1;
 	}
 
 	pdata = pdev->dev.platform_data;
@@ -683,7 +699,6 @@ static int mfc_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
 err_req_fw:
 	misc_deregister(&mfc_miscdev);
 err_misc_reg:
@@ -705,13 +720,26 @@ probe_out:
 	return ret;
 }
 
+
 static int mfc_remove(struct platform_device *pdev)
 {
+        struct s3c_platform_mfc *pdata;
+        struct resource *res;
+        size_t size;
+
+	printk("kodos: mfc_remove\n");
 	iounmap(mfc_sfr_base_vaddr);
-	iounmap(mfc_port0_base_vaddr);
+//	iounmap(mfc_port0_base_vaddr);
 
 	/* remove memory region */
 	if (mfc_mem != NULL) {
+        	pdata = pdev->dev.platform_data;
+	        res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+        	if (res == NULL) {
+                	dev_err(&pdev->dev, "failed to get memory region resource\n");
+	        }
+	        size = (res->end - res->start) + 1;
+		release_mem_region((unsigned int)mfc_mem, size);
 		release_resource(mfc_mem);
 		kfree(mfc_mem);
 		mfc_mem = NULL;
@@ -722,6 +750,8 @@ static int mfc_remove(struct platform_device *pdev)
 	mutex_destroy(&mfc_mutex);
 
 	clk_put(mfc_sclk);
+
+	regulator_put(mfc_pd_regulator);
 
 	misc_deregister(&mfc_miscdev);
 
@@ -735,6 +765,7 @@ static int mfc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	int ret = 0;
 
+	printk("kodos: mfc_suspend\n");
 	mutex_lock(&mfc_mutex);
 
 	if (!mfc_is_running()) {
@@ -761,6 +792,8 @@ static int mfc_resume(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int mc_status;
+
+	printk("kodos: mfc_resume\n");
 
 	mutex_lock(&mfc_mutex);
 

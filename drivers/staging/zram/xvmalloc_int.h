@@ -90,6 +90,8 @@ struct xv_pool {
 	u64 total_pages;	/* stats */
 	struct freelist_entry freelist[NUM_FREE_LISTS];
 	spinlock_t lock;
+	unsigned char *vaddr;
+	unsigned int size;
 };
 
 #endif

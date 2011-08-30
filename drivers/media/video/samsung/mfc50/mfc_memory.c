@@ -47,19 +47,34 @@ unsigned int mfc_get_port0_buff_paddr(void)
 {
 	return mfc_port0_base_paddr + MFC_FW_MAX_SIZE;
 }
+EXPORT_SYMBOL(mfc_get_port0_buff_paddr);
+
+unsigned int mfc_get_port0_buff_size(void)
+{
+	return mfc_port0_memsize - MFC_FW_MAX_SIZE;
+}
+EXPORT_SYMBOL(mfc_get_port0_buff_size);
 
 unsigned char *mfc_get_port0_buff_vaddr(void)
 {
 	return mfc_port0_base_vaddr + MFC_FW_MAX_SIZE;
 }
+EXPORT_SYMBOL(mfc_get_port0_buff_vaddr);
 
 unsigned char *mfc_get_port1_buff_vaddr(void)
 {
 	return mfc_port1_base_vaddr;
 }
+EXPORT_SYMBOL(mfc_get_port1_buff_vaddr);
 
 unsigned int mfc_get_port1_buff_paddr(void)
 {
 	return mfc_port1_base_paddr;
 }
+EXPORT_SYMBOL(mfc_get_port1_buff_paddr);
 
+unsigned int mfc_get_port1_buff_size(void)
+{
+	return mfc_port1_memsize;
+}
+EXPORT_SYMBOL(mfc_get_port1_buff_size);

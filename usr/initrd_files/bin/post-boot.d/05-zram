@@ -2,15 +2,29 @@
 
 source /etc/ram.conf
 
+/bin/insmod /lib/modules/mfc50.ko
+
 if ! test -z $ZRAM_SIZE && test $ZRAM_SIZE -ne "0"; then
  if test -e /lib/modules/lzo_compress.ko; then
    /bin/insmod /lib/modules/lzo_compress.ko
    /bin/insmod /lib/modules/lzo_decompress.ko
  fi
- /bin/insmod /lib/modules/zram.ko num_devices=1
- /sbin/zramconfig /dev/block/zram0 --disksize_kb `expr $ZRAM_SIZE \* 1024`
+ /bin/insmod /lib/modules/zram.ko num_devices=3
+
+ /sbin/zramconfig /dev/block/zram0 --disksize_kb `expr 110 \* 1024`
  /sbin/zramconfig /dev/block/zram0 --init
  mkswap /dev/block/zram0
- swapon /dev/block/zram0
+ swapon /dev/block/zram0 -p 10
+
+ /sbin/zramconfig /dev/block/zram1 --disksize_kb `expr 110 \* 1024`
+ /sbin/zramconfig /dev/block/zram1 --init
+ mkswap /dev/block/zram1
+ swapon /dev/block/zram1 -p 10
+
+ /sbin/zramconfig /dev/block/zram2 --disksize_kb `expr $ZRAM_SIZE \* 1024`
+ /sbin/zramconfig /dev/block/zram2 --init
+ mkswap /dev/block/zram2
+ swapon /dev/block/zram2 -p 0
+
 fi
 

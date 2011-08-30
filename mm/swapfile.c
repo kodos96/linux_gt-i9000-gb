@@ -1553,19 +1553,26 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	int i, type, prev;
 	int err;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+//	if (!capable(CAP_SYS_ADMIN))
+//		return -EPERM;
 
+//	printk("kodos: specialfile: %s\n", specialfile);
+	printk("kodos: specialfile\n");
 	pathname = getname(specialfile);
+//	printk("kodos: pathname: %s\n", pathname);
+	printk("kodos: pathname\n");
 	err = PTR_ERR(pathname);
-	if (IS_ERR(pathname))
+	if (IS_ERR(pathname)) {
 		goto out;
+	}
 
 	victim = filp_open(pathname, O_RDWR|O_LARGEFILE, 0);
 	putname(pathname);
 	err = PTR_ERR(victim);
-	if (IS_ERR(victim))
+	if (IS_ERR(victim)) {
+		printk("kodos: victim\n");
 		goto out;
+	}
 
 	mapping = victim->f_mapping;
 	prev = -1;
@@ -1581,6 +1588,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	if (type < 0) {
 		err = -EINVAL;
 		spin_unlock(&swap_lock);
+		printk("kodos: EINVAL\n");
 		goto out_dput;
 	}
 	if (!security_vm_enough_memory(p->pages))
@@ -1588,6 +1596,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	else {
 		err = -ENOMEM;
 		spin_unlock(&swap_lock);
+		printk("kodos: ENOMEM\n");
 		goto out_dput;
 	}
 	if (prev < 0)
@@ -1681,8 +1690,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	err = 0;
 
 out_dput:
+	printk("kodos: out_dput\n");
 	filp_close(victim, NULL);
 out:
+	printk("kodos: out\n");
 	return err;
 }
 

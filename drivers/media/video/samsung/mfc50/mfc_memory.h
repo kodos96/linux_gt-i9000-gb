@@ -98,8 +98,10 @@ extern unsigned int  mfc_port0_memsize, mfc_port1_memsize;
 unsigned int mfc_get_fw_buff_paddr(void);
 unsigned char *mfc_get_fw_buff_vaddr(void);
 unsigned int mfc_get_port0_buff_paddr(void);
+unsigned int mfc_get_port0_buff_size(void);
 unsigned char *mfc_get_port0_buff_vaddr(void);
 unsigned int mfc_get_port1_buff_paddr(void);
+unsigned int mfc_get_port1_buff_size(void);
 unsigned char *mfc_get_port1_buff_vaddr(void);
 
 extern void __iomem *mfc_sfr_base_vaddr;

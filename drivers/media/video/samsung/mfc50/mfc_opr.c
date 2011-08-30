@@ -31,12 +31,15 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/syscalls.h>
 #include <plat/regs-mfc.h>
 #include <asm/cacheflush.h>
+#include <asm/uaccess.h>
 #include <mach/map.h>
 #include <plat/map-s5p.h>
 
@@ -784,8 +787,25 @@ enum mfc_error_code mfc_init_hw()
 	unsigned int mc_status;
 	unsigned long idcode;
 	int nIntrRet = 0;
+	long swapoffRet=0;
+/*	char p1[] = "/dev/block/zram0";
+	char *p2;
+
+	p2 = kmalloc(17, GFP_USER);
+	copy_to_user(p2, &p1, 17);
 
 	mfc_debug("mfc_init_hw++\n");
+
+	//pathname = kmalloc(strlen("/dev/block/zram0") + 1, GFP_USER);
+	//strcpy(pathname, "/dev/block/zram0");
+	while(1) {
+		swapoffRet = sys_swapoff(p2);
+		printk("kodos: swapoff returned %ld\n", swapoffRet);
+		msleep(500);
+	}
+
+	kfree(p2);
+*/
 
 	/*
 	 * 0-1. Check Type
@@ -2124,11 +2144,19 @@ bool mfc_is_running(void)
 			ret = true;
 	}
 
+	if (ret)
+		printk("kodos: mfc_is_running: true\n");
+	else
+		printk("kodos: mfc_is_running: false\n");
+
 	return ret;
 }
 
 int mfc_set_state(struct mfc_inst_ctx *ctx, enum mfc_inst_state state)
 {
+
+	printk("kodos: mfc_set_state: %d\n", state);
+
 	if (ctx->MfcState > state)
 		return -1;
 
@@ -2183,6 +2211,8 @@ static void write_file(char *filename,  unsigned char *data, unsigned int nSize)
 	int fd;
 	mm_segment_t old_fs;
 
+	printk("kodos: (mfc)write_file start\n");
+
 	invalidate_kernel_vmap_range(data, nSize);
 
 	old_fs = get_fs();
@@ -2202,6 +2232,8 @@ static void write_file(char *filename,  unsigned char *data, unsigned int nSize)
 	set_fs(old_fs);
 
 	dmac_flush_range(data, data + nSize);
+
+	printk("kodos: (mfc)write_file finished\n");
 
 }
 

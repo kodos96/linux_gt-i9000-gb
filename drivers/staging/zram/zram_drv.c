@@ -34,6 +34,8 @@
 
 #include "zram_drv.h"
 
+#include "../../media/video/samsung/mfc50/mfc_memory.h"
+
 /* Globals */
 static int zram_major;
 static struct zram *devices;
@@ -552,7 +554,8 @@ static int zram_ioctl_init_device(struct zram *zram)
 	/* zram devices sort of resembles non-rotational disks */
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
 
-	zram->mem_pool = xv_create_pool();
+	zram->mem_pool = xv_create_pool(zram->vaddr, zram->size);
+
 	if (!zram->mem_pool) {
 		pr_err("Error creating memory pool\n");
 		ret = -ENOMEM;
@@ -698,6 +701,18 @@ static int create_device(struct zram *zram, int device_id)
 	zram->disk->fops = &zram_devops;
 	zram->disk->queue = zram->queue;
 	zram->disk->private_data = zram;
+	if (device_id == 0) {
+		zram->vaddr = mfc_get_port0_buff_vaddr();
+		zram->size = mfc_get_port0_buff_size();
+	}
+	else if (device_id == 1) {
+		zram->vaddr = mfc_get_port1_buff_vaddr();
+		zram->size = mfc_get_port1_buff_size();
+	}
+	else {
+		zram->vaddr = 0;
+		zram->size = 0;
+	}
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 
 	/* Actual capacity set using ZRAMIO_SET_DISKSIZE_KB ioctl */

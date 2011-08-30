@@ -1,0 +1,4 @@
+#!/bin/sh
+su -c "rmmod mfc50.ko"
+su -c "/bin/sh /bin/post-boot.d/05-zram"
+echo "Done"

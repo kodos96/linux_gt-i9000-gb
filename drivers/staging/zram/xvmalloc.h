@@ -17,7 +17,7 @@
 
 struct xv_pool;
 
-struct xv_pool *xv_create_pool(void);
+struct xv_pool *xv_create_pool(unsigned char* vaddr, unsigned int size);
 void xv_destroy_pool(struct xv_pool *pool);
 
 int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
